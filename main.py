@@ -4,6 +4,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import pandas as pd
+import openpyxl
 import time
 
 # Inicializar o WebDriver com a forma mais simplificada
@@ -87,7 +88,7 @@ def ir_para_proxima_pagina(driver):
     try:
         next_button = driver.find_element(By.XPATH, "//button[@data-test='next-page']")
         next_button.click()
-        time.sleep(10)
+        time.sleep(5)
     except Exception as e:
         print(f"An error occurred while navigating to the next page: {e}")
 
@@ -97,6 +98,7 @@ def raspar_avaliacoes(driver, num_paginas):
     todos_titulos = []
     todas_datas = []
     todos_cargos = []
+    todos_tempos = []  # Nova lista para tempo do funcionário
     todos_pros = []
     todos_contras = []
 
@@ -122,6 +124,10 @@ def raspar_avaliacoes(driver, num_paginas):
             cargos_elements = driver.find_elements(By.XPATH, "//span[contains(@class, 'review-details_employee__MeSp3')]")
             cargos = [cargo.text for cargo in cargos_elements]
 
+            # Coletar todos os tempos de trabalho dos avaliadores
+            tempos_elements = driver.find_elements(By.XPATH, "//div[contains(@class, 'review-details_employmentDetailsContainer__qVzcs')]/div[1]")
+            tempos = [tempo.text for tempo in tempos_elements]
+
             # Coletar todos os pros das avaliações
             pros_elements = driver.find_elements(By.XPATH, "//span[@data-test='review-text-pros']")
             pros = [pro.text for pro in pros_elements]
@@ -135,6 +141,7 @@ def raspar_avaliacoes(driver, num_paginas):
             todos_titulos.extend(titulos)
             todas_datas.extend(datas)
             todos_cargos.extend(cargos)
+            todos_tempos.extend(tempos)
             todos_pros.extend(pros)
             todos_contras.extend(contras)
 
@@ -145,10 +152,11 @@ def raspar_avaliacoes(driver, num_paginas):
             print(f"An error occurred during review scraping: {e}")
             continue
 
-    return todas_notas, todos_titulos, todas_datas, todos_cargos, todos_pros, todos_contras
+    return todas_notas, todos_titulos, todas_datas, todos_cargos, todos_tempos, todos_pros, todos_contras
 
 # Exemplo de uso das funções
 try:
+    driver = webdriver.Chrome()  # Inicialize o driver do Chrome
     email = "paraello01@hotmail.com"
     password = "BHpG.@hU@b9GWva"
     company_name = "Sinqia"
@@ -156,9 +164,9 @@ try:
     login(driver, email, password)
     busca_empresa(driver, company_name)
     
-    # Raspagem de avaliações em 10 páginas
-    num_paginas = 1
-    notas, titulos, datas, cargos, pros, contras = raspar_avaliacoes(driver, num_paginas)
+    # Raspagem de avaliações em 1 página
+    num_paginas = 97
+    notas, titulos, datas, cargos, tempos, pros, contras = raspar_avaliacoes(driver, num_paginas)
     
     # Criar um DataFrame com pandas
     data = {
@@ -166,15 +174,17 @@ try:
         'Título': titulos,
         'Data': datas,
         'Cargo': cargos,
+        'Tempo do Funcionário': tempos,
         'Pros': pros,
         'Contras': contras
     }
     df = pd.DataFrame(data)
+    df.to_excel('avaliacoes.xlsx', index=False)
     print(df)
 
 except Exception as e:
     print(f"An error occurred: {e}")
 finally:
     # Aguarde um pouco para visualizar os resultados antes de fechar o navegador
-    time.sleep(100)
+    time.sleep(600)
     driver.quit()
